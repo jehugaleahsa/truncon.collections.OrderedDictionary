@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Truncon.Collections;
 
-namespace CollectionExtensions.Test
+namespace Truncon.Collections.Tests
 {
     /// <summary>
     /// Tests the OrderedDictionary class.
