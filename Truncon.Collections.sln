@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Truncon.Collections", "Truncon.Collections\Truncon.Collections.csproj", "{3E319139-CADB-45B9-8D26-2EA4D8036B3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Truncon.Collections.Tests", "Truncon.Collections.Tests\Truncon.Collections.Tests.csproj", "{7BF471D4-5344-4753-8F78-D864E79BF962}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3E319139-CADB-45B9-8D26-2EA4D8036B3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E319139-CADB-45B9-8D26-2EA4D8036B3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E319139-CADB-45B9-8D26-2EA4D8036B3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E319139-CADB-45B9-8D26-2EA4D8036B3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BF471D4-5344-4753-8F78-D864E79BF962}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BF471D4-5344-4753-8F78-D864E79BF962}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BF471D4-5344-4753-8F78-D864E79BF962}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BF471D4-5344-4753-8F78-D864E79BF962}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
