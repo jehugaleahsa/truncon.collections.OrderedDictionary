@@ -214,3 +214,4 @@ $RECYCLE.BIN/
 *.msp
 /.vs/Truncon.Collections/v15/Server/sqlite3
 /Truncon.Collections/Truncon.Collections.xml
+*.dtbcache

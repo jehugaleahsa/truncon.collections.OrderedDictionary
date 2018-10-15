@@ -158,10 +158,7 @@ namespace Truncon.Collections
         {
             if (dictionary.TryGetValue(key, out int index))
             {
-                dictionary.Remove(key);
-                keys.RemoveAt(index);
-                values.RemoveAt(index);
-                ++version;
+                RemoveAt(index);
                 return true;
             }
             return false;

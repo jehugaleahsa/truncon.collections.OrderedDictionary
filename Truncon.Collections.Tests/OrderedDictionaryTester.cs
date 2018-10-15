@@ -646,6 +646,22 @@ namespace Truncon.Collections.Tests
         }
 
         /// <summary>
+        /// When removing a key/value pair, the index of all subsequent pairs should be decremented.
+        /// </summary>
+        [TestMethod]
+        public void TestRemove_IndexesShift()
+        {
+            var dictionary = new OrderedDictionary<string, int>() { { "zero", 0 }, { "one", 1 }, { "two", 2 } };
+            bool result = dictionary.Remove("zero");
+            Assert.IsTrue(result, "True should have been returned.");
+            Assert.AreEqual(2, dictionary.Count, "The count should have been decremented.");
+            Assert.AreEqual(1, dictionary[0], "One should now occupy the zeroth index.");
+            Assert.AreEqual(1, dictionary["one"], "One should map to 1.");
+            Assert.AreEqual(2, dictionary[1], "Two should now occupy the first index.");
+            Assert.AreEqual(2, dictionary["two"], "Two should map to 2.");
+        }
+
+        /// <summary>
         /// An exception should be thrown if we try to remove a null key.
         /// </summary>
         [TestMethod]
