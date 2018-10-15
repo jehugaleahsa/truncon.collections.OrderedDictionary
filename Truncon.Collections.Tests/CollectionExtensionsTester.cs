@@ -19,7 +19,7 @@ namespace Truncon.Collections.Tests
         {
             IEnumerable<string> collection = null;
             Func<string, int> keySelector = s => s.Length;
-            CollectionExtensions.ToOrderedDictionary(collection, keySelector);
+            Extensions.CollectionExtensions.ToOrderedDictionary(collection, keySelector);
         }
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Truncon.Collections.Tests
         {
             IEnumerable<string> collection = new string[] { "Hello", "Goodbye", "Farewell", "Greetings" };
             Func<string, int> keySelector = null;
-            CollectionExtensions.ToOrderedDictionary(collection, keySelector);
+            Extensions.CollectionExtensions.ToOrderedDictionary(collection, keySelector);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Truncon.Collections.Tests
             IEnumerable<string> collection = null;
             Func<string, int> keySelector = s => s.Length;
             IEqualityComparer<int> comparer = EqualityComparer<int>.Default;
-            CollectionExtensions.ToOrderedDictionary(collection, keySelector, comparer);
+            Extensions.CollectionExtensions.ToOrderedDictionary(collection, keySelector, comparer);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Truncon.Collections.Tests
             IEnumerable<string> collection = new string[] { "Hello", "Goodbye", "Farewell", "Greetings" };
             Func<string, int> keySelector = null;
             IEqualityComparer<int> comparer = EqualityComparer<int>.Default;
-            CollectionExtensions.ToOrderedDictionary(collection, keySelector, comparer);
+            Extensions.CollectionExtensions.ToOrderedDictionary(collection, keySelector, comparer);
         }
 
         /// <summary>

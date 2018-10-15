@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Truncon.Collections;
 
 namespace Truncon.Collections.Tests
 {
@@ -1147,6 +1146,25 @@ namespace Truncon.Collections.Tests
             Assert.IsFalse(enumerator.MoveNext(), "No more items should have been enumerated.");
         }
 
+        /// <summary>
+        /// The enumerator should access the key/value pairs in the order they were added.
+        /// </summary>
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void TestGetEnumerator_ModifyCollection_ThrowsException()
+        {
+            OrderedDictionary<string, int> dictionary = new OrderedDictionary<string, int>()
+            {
+                { "Hello", 0 },
+                { "Goodbye", 1 },
+                { "Farewell", 2 },
+            };
+            foreach (var pair in dictionary)
+            {
+                dictionary.Add("Later", 3);
+            }
+        }
+
         #endregion
 
         #region Keys
@@ -1257,8 +1275,7 @@ namespace Truncon.Collections.Tests
         /// an exception should be thrown.
         /// </summary>
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
-        public void TestCopyTo_RemainingArrayTooSmall_ThrowsException()
+        public void TestCopyTo_RemainingArrayTooSmall_NothingWritten()
         {
             ICollection<KeyValuePair<int, int>> collection = new OrderedDictionary<int, int>() { { 0, 0 } };
             KeyValuePair<int, int>[] array = new KeyValuePair<int,int>[0];
@@ -1280,20 +1297,6 @@ namespace Truncon.Collections.Tests
         #endregion
 
         #region KeyCollection
-
-        #region Ctor
-
-        /// <summary>
-        /// An exception should be thrown if we try to create a KeyCollection with a null OrderedDictionary.
-        /// </summary>
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public void TestKeyCollection_Ctor_NullDictionary_ThrowsException()
-        {
-            new OrderedDictionary<int, int>.KeyCollection(null);
-        }
-
-        #endregion
 
         #region Contains
 
@@ -1515,20 +1518,6 @@ namespace Truncon.Collections.Tests
         #endregion
 
         #region ValueCollection
-
-        #region Ctor
-
-        /// <summary>
-        /// An exception should be thrown if we try to create a ValueCollection with a null OrderedDictionary.
-        /// </summary>
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public void TestValueCollection_Ctor_NullDictionary_ThrowsException()
-        {
-            new OrderedDictionary<int, int>.ValueCollection(null);
-        }
-
-        #endregion
 
         #region Contains
 

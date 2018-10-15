@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using Truncon.Collections.Properties;
 
 namespace Truncon.Collections
@@ -23,16 +22,17 @@ namespace Truncon.Collections
     [DebuggerTypeProxy(typeof(OrderedDictionaryDebugView<,>))]
     public sealed class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IList<KeyValuePair<TKey, TValue>>
     {
-        private readonly Dictionary<TKey, TValue> dictionary;
+        private readonly Dictionary<TKey, int> dictionary;
         private readonly List<TKey> keys;
+        private readonly List<TValue> values;
+        private int version;
 
         /// <summary>
         /// Initializes a new instance of an OrderedDictionary.
         /// </summary>
         public OrderedDictionary()
+            : this(0, null)
         {
-            dictionary = new Dictionary<TKey, TValue>();
-            keys = new List<TKey>();
         }
 
         /// <summary>
@@ -41,9 +41,8 @@ namespace Truncon.Collections
         /// <param name="capacity">The initial capacity of the dictionary.</param>
         /// <exception cref="System.ArgumentOutOfRangeException">The capacity is less than zero.</exception>
         public OrderedDictionary(int capacity)
+            : this(capacity, null)
         {
-            dictionary = new Dictionary<TKey, TValue>(capacity);
-            keys = new List<TKey>(capacity);
         }
 
         /// <summary>
@@ -51,9 +50,8 @@ namespace Truncon.Collections
         /// </summary>
         /// <param name="comparer">The equality comparer to use to compare keys.</param>
         public OrderedDictionary(IEqualityComparer<TKey> comparer)
+            : this(0, comparer)
         {
-            dictionary = new Dictionary<TKey, TValue>(comparer);
-            keys = new List<TKey>();
         }
 
         /// <summary>
@@ -63,17 +61,15 @@ namespace Truncon.Collections
         /// <param name="comparer">The equality comparer to use to compare keys.</param>
         public OrderedDictionary(int capacity, IEqualityComparer<TKey> comparer)
         {
-            dictionary = new Dictionary<TKey, TValue>(capacity, comparer);
+            dictionary = new Dictionary<TKey, int>(capacity, comparer ?? EqualityComparer<TKey>.Default);
             keys = new List<TKey>(capacity);
+            values = new List<TValue>(capacity);
         }
 
         /// <summary>
         /// Gets the equality comparer used to compare keys.
         /// </summary>
-        public IEqualityComparer<TKey> Comparer
-        {
-            get { return dictionary.Comparer; }
-        }
+        public IEqualityComparer<TKey> Comparer => dictionary.Comparer;
 
         /// <summary>
         /// Adds the given key/value pair to the dictionary.
@@ -84,8 +80,10 @@ namespace Truncon.Collections
         /// <exception cref="System.ArgumentNullException">The key is null.</exception>
         public void Add(TKey key, TValue value)
         {
-            dictionary.Add(key, value);
+            dictionary.Add(key, values.Count);
             keys.Add(key);
+            values.Add(value);
+            ++version;
         }
 
         /// <summary>
@@ -99,12 +97,19 @@ namespace Truncon.Collections
         /// <exception cref="System.ArgumentOutOfRangeException">The index is negative -or- larger than the size of the dictionary.</exception>
         public void Insert(int index, TKey key, TValue value)
         {
-            if (index < 0 || index > dictionary.Count)
+            if (index < 0 || index > values.Count)
             {
-                throw new ArgumentOutOfRangeException("index", index, Resources.IndexOutOfRange);
+                throw new ArgumentOutOfRangeException(nameof(index), index, Resources.IndexOutOfRange);
             }
-            dictionary.Add(key, value);
+            dictionary.Add(key, index);
+            for (int keyIndex = index; keyIndex != keys.Count; ++keyIndex)
+            {
+                var otherKey = keys[keyIndex];
+                dictionary[otherKey] += 1;
+            }
             keys.Insert(index, key);
+            values.Insert(index, value);
+            ++version;
         }
 
         /// <summary>
@@ -113,10 +118,7 @@ namespace Truncon.Collections
         /// <param name="key">The key to look for.</param>
         /// <returns>True if the key exists in the dictionary; otherwise, false.</returns>
         /// <exception cref="System.ArgumentNullException">The key is null.</exception>
-        public bool ContainsKey(TKey key)
-        {
-            return dictionary.ContainsKey(key);
-        }
+        public bool ContainsKey(TKey key) => dictionary.ContainsKey(key);
 
         /// <summary>
         /// Gets the key at the given index.
@@ -124,10 +126,7 @@ namespace Truncon.Collections
         /// <param name="index">The index of the key to get.</param>
         /// <returns>The key at the given index.</returns>
         /// <exception cref="System.ArgumentOutOfRangeException">The index is negative -or- larger than the number of keys.</exception>
-        public TKey GetKey(int index)
-        {
-            return keys[index];
-        }
+        public TKey GetKey(int index) => keys[index];
 
         /// <summary>
         /// Gets the index of the given key.
@@ -137,20 +136,17 @@ namespace Truncon.Collections
         /// <remarks>The operation runs in O(n).</remarks>
         public int IndexOf(TKey key)
         {
-            if (!dictionary.ContainsKey(key))
+            if (dictionary.TryGetValue(key, out int index))
             {
-                return -1;
+                return index;
             }
-            return keys.FindIndex(item => dictionary.Comparer.Equals(item, key));
+            return -1;
         }
 
         /// <summary>
         /// Gets the keys in the dictionary in the order they were added.
         /// </summary>
-        public KeyCollection Keys
-        {
-            get { return new KeyCollection(this); }
-        }
+        public KeyCollection Keys => new KeyCollection(this.dictionary);
 
         /// <summary>
         /// Removes the key/value pair with the given key from the dictionary.
@@ -158,13 +154,14 @@ namespace Truncon.Collections
         /// <param name="key">The key of the pair to remove.</param>
         /// <returns>True if the key was found and the pair removed; otherwise, false.</returns>
         /// <exception cref="System.ArgumentNullException">The key is null.</exception>
-        /// <remarks>This operation runs in O(n).</remarks>
         public bool Remove(TKey key)
         {
-            if (dictionary.Remove(key))
+            if (dictionary.TryGetValue(key, out int index))
             {
-                int index = keys.FindIndex(item => dictionary.Comparer.Equals(item, key));
+                dictionary.Remove(key);
                 keys.RemoveAt(index);
+                values.RemoveAt(index);
+                ++version;
                 return true;
             }
             return false;
@@ -175,12 +172,18 @@ namespace Truncon.Collections
         /// </summary>
         /// <param name="index">The index of the key/value pair to remove.</param>
         /// <exception cref="System.ArgumentOutOfRangeException">The index is negative -or- larger than the size of the dictionary.</exception>
-        /// <remarks>This operation runs in O(n).</remarks>
         public void RemoveAt(int index)
         {
-            TKey key = keys[index];
+            var key = keys[index];
+            for (int keyIndex = index + 1; keyIndex < keys.Count; ++keyIndex)
+            {
+                var otherKey = keys[keyIndex];
+                dictionary[otherKey] -= 1;
+            }
             dictionary.Remove(key);
             keys.RemoveAt(index);
+            values.RemoveAt(index);
+            ++version;
         }
 
         /// <summary>
@@ -193,16 +196,19 @@ namespace Truncon.Collections
         /// <exception cref="System.ArgumentNullException">The key is null.</exception>
         public bool TryGetValue(TKey key, out TValue value)
         {
-            return dictionary.TryGetValue(key, out value);
+            if (dictionary.TryGetValue(key, out int index))
+            {
+                value = values[index];
+                return true;
+            }
+            value = default(TValue);
+            return false;
         }
 
         /// <summary>
         /// Gets the values in the dictionary.
         /// </summary>
-        public ValueCollection Values
-        {
-            get { return new ValueCollection(this); }
-        }
+        public ValueCollection Values => new ValueCollection(values);
 
         /// <summary>
         /// Gets or sets the value at the given index.
@@ -212,14 +218,8 @@ namespace Truncon.Collections
         /// <exception cref="System.ArgumentOutOfRangeException">The index is negative -or- beyond the length of the dictionary.</exception>
         public TValue this[int index]
         {
-            get
-            {
-                return dictionary[keys[index]];
-            }
-            set
-            {
-                dictionary[keys[index]] = value;
-            }
+            get => values[index];
+            set => values[index] = value;
         }
 
         /// <summary>
@@ -233,15 +233,18 @@ namespace Truncon.Collections
         {
             get
             {
-                return dictionary[key];
+                return values[dictionary[key]];
             }
             set
             {
-                if (!dictionary.ContainsKey(key))
+                if (dictionary.TryGetValue(key, out int index))
                 {
-                    keys.Add(key);
+                    values[index] = value;
                 }
-                dictionary[key] = value;
+                else
+                {
+                    Add(key, value);
+                }
             }
         }
 
@@ -252,15 +255,14 @@ namespace Truncon.Collections
         {
             dictionary.Clear();
             keys.Clear();
+            values.Clear();
+            ++version;
         }
 
         /// <summary>
         /// Gets the number of key/value pairs in the dictionary.
         /// </summary>
-        public int Count
-        {
-            get { return dictionary.Count; }
-        }
+        public int Count => dictionary.Count;
 
         /// <summary>
         /// Gets the key/value pairs in the dictionary in the order they were added.
@@ -268,36 +270,31 @@ namespace Truncon.Collections
         /// <returns>An enumerator over the key/value pairs in the dictionary.</returns>
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            foreach (TKey key in keys)
+            int startVersion = version;
+            for (int index = 0; index != keys.Count; ++index)
             {
-                yield return new KeyValuePair<TKey, TValue>(key, dictionary[key]);
+                var key = keys[index];
+                var value = values[index];
+                yield return new KeyValuePair<TKey, TValue>(key, value);
+                if (version != startVersion)
+                {
+                    throw new InvalidOperationException(Resources.CollectionModified);
+                }
             }
         }
 
         int IList<KeyValuePair<TKey, TValue>>.IndexOf(KeyValuePair<TKey, TValue> item)
         {
-            TValue value;
-            if (!dictionary.TryGetValue(item.Key, out value))
+            if (dictionary.TryGetValue(item.Key, out int index) && Equals(values[index], item.Value))
             {
-                return -1;
+                return index;
             }
-            if (!Equals(item.Value, value))
-            {
-                return -1;
-            }
-            int index = keys.FindIndex(key => dictionary.Comparer.Equals(item.Key, key));
-            return index;
-
+            return -1;
         }
 
         void IList<KeyValuePair<TKey, TValue>>.Insert(int index, KeyValuePair<TKey, TValue> item)
         {
-            if (index < 0 || index > dictionary.Count)
-            {
-                throw new ArgumentOutOfRangeException("index", index, Resources.IndexOutOfRange);
-            }
-            dictionary.Add(item.Key, item.Value);
-            keys.Insert(index, item.Key);
+            Insert(index, item.Key, item.Value);
         }
 
         KeyValuePair<TKey, TValue> IList<KeyValuePair<TKey, TValue>>.this[int index]
@@ -305,7 +302,7 @@ namespace Truncon.Collections
             get
             {
                 TKey key = keys[index];
-                TValue value = dictionary[key];
+                TValue value = values[index];
                 return new KeyValuePair<TKey, TValue>(key, value);
             }
             set
@@ -313,112 +310,83 @@ namespace Truncon.Collections
                 TKey key = keys[index];
                 if (dictionary.Comparer.Equals(key, value.Key))
                 {
-                    dictionary[value.Key] = value.Value;
+                    dictionary[value.Key] = index;
                 }
                 else
                 {
-                    dictionary.Add(value.Key, value.Value);
+                    dictionary.Add(value.Key, index);  // will throw if key already exists
                     dictionary.Remove(key);
-                    keys[index] = value.Key;
                 }
+                keys[index] = value.Key;
+                values[index] = value.Value;
             }
         }
 
-        ICollection<TKey> IDictionary<TKey, TValue>.Keys
-        {
-            get { return Keys; }
-        }
+        ICollection<TKey> IDictionary<TKey, TValue>.Keys => Keys;
 
-        ICollection<TValue> IDictionary<TKey, TValue>.Values
-        {
-            get { return Values; }
-        }
+        ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
 
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item)
         {
-            dictionary.Add(item.Key, item.Value);
-            keys.Add(item.Key);
+            Add(item.Key, item.Value);
         }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
         {
-            TValue value;
-            if (!dictionary.TryGetValue(item.Key, out value))
+            if (dictionary.TryGetValue(item.Key, out int index) && Equals(values[index], item.Value))
             {
-                return false;
+                return true;
             }
-            return Equals(value, item.Value);
+            return false;
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
             if (arrayIndex < 0)
             {
-                throw new ArgumentOutOfRangeException("arrayIndex", arrayIndex, String.Format(CultureInfo.CurrentCulture, Resources.TooSmall, 0));
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), arrayIndex, Resources.IndexOutOfRange);
             }
-            if (dictionary.Count > array.Length - arrayIndex)
+            for (int index = 0; index != keys.Count && arrayIndex < array.Length; ++index, ++arrayIndex)
             {
-                throw new ArgumentException(Resources.ArrayTooSmall, "array");
-            }
-            foreach (TKey key in keys)
-            {
-                TValue value = dictionary[key];
+                var key = keys[index];
+                var value = values[index];
                 array[arrayIndex] = new KeyValuePair<TKey, TValue>(key, value);
-                ++arrayIndex;
             }
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
         {
-            TValue value;
-            if (!dictionary.TryGetValue(item.Key, out value))
+            ICollection<KeyValuePair<TKey, TValue>> self = this;
+            if (self.Contains(item))
             {
-                return false;
+                return Remove(item.Key);
             }
-            if (!Equals(item.Value, value))
-            {
-                return false;
-            }
-            // O(n)
-            dictionary.Remove(item.Key);
-            int index = keys.FindIndex(key => dictionary.Comparer.Equals(item.Key, key));
-            keys.RemoveAt(index);
-            return true;
+            return false;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <summary>
         /// Wraps the keys in an OrderDictionary.
         /// </summary>
         public sealed class KeyCollection : ICollection<TKey>
         {
-            private readonly OrderedDictionary<TKey, TValue> parent;
+            private readonly Dictionary<TKey, int> dictionary;
 
             /// <summary>
             /// Initializes a new instance of a KeyCollection.
             /// </summary>
             /// <param name="dictionary">The OrderedDictionary whose keys to wrap.</param>
             /// <exception cref="System.ArgumentNullException">The dictionary is null.</exception>
-            public KeyCollection(OrderedDictionary<TKey, TValue> dictionary)
+            internal KeyCollection(Dictionary<TKey, int> dictionary)
             {
-                if (dictionary == null)
-                {
-                    throw new ArgumentNullException("dictionary");
-                }
-                parent = dictionary;
+                this.dictionary = dictionary;
             }
 
             /// <summary>
@@ -431,60 +399,36 @@ namespace Truncon.Collections
             /// <exception cref="System.ArgumentException">The array, starting at the given index, is not large enough to contain all the keys.</exception>
             public void CopyTo(TKey[] array, int arrayIndex)
             {
-                parent.keys.CopyTo(array, arrayIndex);
+                dictionary.Keys.CopyTo(array, arrayIndex);
             }
 
             /// <summary>
             /// Gets the number of keys in the OrderedDictionary.
             /// </summary>
-            public int Count
-            {
-                get { return parent.dictionary.Count; }
-            }
+            public int Count => dictionary.Count;
 
             /// <summary>
             /// Gets an enumerator over the keys in the OrderedDictionary.
             /// </summary>
             /// <returns>The enumerator.</returns>
-            public IEnumerator<TKey> GetEnumerator()
-            {
-                return parent.keys.GetEnumerator();
-            }
+            public IEnumerator<TKey> GetEnumerator() => dictionary.Keys.GetEnumerator();
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TKey>.Contains(TKey item)
-            {
-                return parent.dictionary.ContainsKey(item);
-            }
+            bool ICollection<TKey>.Contains(TKey item) => dictionary.ContainsKey(item);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            void ICollection<TKey>.Add(TKey item)
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            void ICollection<TKey>.Add(TKey item) => throw new NotSupportedException(Resources.EditReadOnlyList);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            void ICollection<TKey>.Clear()
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            void ICollection<TKey>.Clear() => throw new NotSupportedException(Resources.EditReadOnlyList);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TKey>.IsReadOnly
-            {
-                get { return true; }
-            }
+            bool ICollection<TKey>.IsReadOnly => true;
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TKey>.Remove(TKey item)
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            bool ICollection<TKey>.Remove(TKey item) => throw new NotSupportedException(Resources.EditReadOnlyList);
 
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         /// <summary>
@@ -492,20 +436,16 @@ namespace Truncon.Collections
         /// </summary>
         public sealed class ValueCollection : ICollection<TValue>
         {
-            private readonly OrderedDictionary<TKey, TValue> parent;
+            private readonly List<TValue> values;
 
             /// <summary>
             /// Initializes a new instance of a ValueCollection.
             /// </summary>
-            /// <param name="dictionary">The OrderedDictionary whose keys to wrap.</param>
+            /// <param name="values">The OrderedDictionary whose keys to wrap.</param>
             /// <exception cref="System.ArgumentNullException">The dictionary is null.</exception>
-            public ValueCollection(OrderedDictionary<TKey, TValue> dictionary)
+            internal ValueCollection(List<TValue> values)
             {
-                if (dictionary == null)
-                {
-                    throw new ArgumentNullException("dictionary");
-                }
-                parent = dictionary;
+                this.values = values;
             }
 
             /// <summary>
@@ -518,81 +458,36 @@ namespace Truncon.Collections
             /// <exception cref="System.ArgumentException">The array, starting at the given index, is not large enough to contain all the values.</exception>
             public void CopyTo(TValue[] array, int arrayIndex)
             {
-                if (array == null)
-                {
-                    throw new ArgumentNullException("array");
-                }
-                if (arrayIndex < 0)
-                {
-                    throw new ArgumentOutOfRangeException("arrayIndex", arrayIndex, String.Format(Resources.TooSmall, 0));
-                }
-                if (parent.dictionary.Count > array.Length - arrayIndex)
-                {
-                    throw new ArgumentException(Resources.ArrayTooSmall, "array");
-                }
-                foreach (TKey key in parent.keys)
-                {
-                    TValue value = parent.dictionary[key];
-                    array[arrayIndex] = value;
-                    ++arrayIndex;
-                }
+                values.CopyTo(array, arrayIndex);
             }
 
             /// <summary>
             /// Gets the number of values in the OrderedDictionary.
             /// </summary>
-            public int Count
-            {
-                get { return parent.dictionary.Count; }
-            }
+            public int Count => values.Count;
 
             /// <summary>
             /// Gets an enumerator over the values in the OrderedDictionary.
             /// </summary>
             /// <returns>The enumerator.</returns>
-            public IEnumerator<TValue> GetEnumerator()
-            {
-                foreach (TKey key in parent.keys)
-                {
-                    TValue value = parent.dictionary[key];
-                    yield return value;
-                }
-            }
+            public IEnumerator<TValue> GetEnumerator() => values.GetEnumerator();
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TValue>.Contains(TValue item)
-            {
-                return parent.dictionary.ContainsValue(item);
-            }
+            bool ICollection<TValue>.Contains(TValue item) => values.Contains(item);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            void ICollection<TValue>.Add(TValue item)
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            void ICollection<TValue>.Add(TValue item) => throw new NotSupportedException(Resources.EditReadOnlyList);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            void ICollection<TValue>.Clear()
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            void ICollection<TValue>.Clear() => throw new NotSupportedException(Resources.EditReadOnlyList);
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TValue>.IsReadOnly
-            {
-                get { return true; }
-            }
+            bool ICollection<TValue>.IsReadOnly => true;
 
             [EditorBrowsable(EditorBrowsableState.Never)]
-            bool ICollection<TValue>.Remove(TValue item)
-            {
-                throw new NotSupportedException(Resources.EditReadOnlyList);
-            }
+            bool ICollection<TValue>.Remove(TValue item) => throw new NotSupportedException(Resources.EditReadOnlyList);
 
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

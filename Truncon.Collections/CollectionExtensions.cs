@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Truncon.Collections.Extensions
 {
+    /// <summary>
+    /// Provides extensions methods for constructing instances of <see cref="OrderedDictionary{TKey, TValue}"/>.
+    /// </summary>
     public static class CollectionExtensions
     {
         #region ToOrderedDictionary
@@ -17,15 +20,7 @@ namespace Truncon.Collections.Extensions
         /// <returns>An OrderedDictionary mapping the extracted keys to their values.</returns>
         public static OrderedDictionary<TKey, TSource> ToOrderedDictionary<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
         {
-            if (source == null)
-            {
-                throw new ArgumentNullException("collection");
-            }
-            if (keySelector == null)
-            {
-                throw new ArgumentNullException("keySelector");
-            }
-            return toOrderedDictionary(source, keySelector, null);
+            return ToOrderedDictionary(source, keySelector, null);
         }
 
         /// <summary>
@@ -45,21 +40,13 @@ namespace Truncon.Collections.Extensions
         {
             if (source == null)
             {
-                throw new ArgumentNullException("collection");
+                throw new ArgumentNullException(nameof(source));
             }
             if (keySelector == null)
             {
-                throw new ArgumentNullException("keySelector");
+                throw new ArgumentNullException(nameof(keySelector));
             }
-            return toOrderedDictionary(source, keySelector, comparer);
-        }
-
-        private static OrderedDictionary<TKey, TSource> toOrderedDictionary<TSource, TKey>(
-            IEnumerable<TSource> source,
-            Func<TSource, TKey> keySelector,
-            IEqualityComparer<TKey> comparer)
-        {
-            OrderedDictionary<TKey, TSource> dictionary = new OrderedDictionary<TKey, TSource>(comparer);
+            var dictionary = new OrderedDictionary<TKey, TSource>(comparer);
             foreach (TSource item in source)
             {
                 TKey key = keySelector(item);
