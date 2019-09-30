@@ -15,13 +15,15 @@ A generic `OrderedDictionary` has various advantages over the non-generic versio
 ## Performance Guidelines
 Most of the operations on `OrderedDictionary` run in constant time (amortized). Here I list those which have a different performance characteristic:
 
-*  **Insert** - Inserting into the front or middle of the collection will cause all of the subsequent key/value pairs to be shifted. Inserting onto the end runs in amortized constant time.
+*  **Insert** - Inserting into the front or middle of the collection will cause all of the subsequent key/value pairs to be shifted. Inserting onto the end runs in amortized constant time. 
 * **Remove** - Calls RemoveAt (see below).
 * **RemoveAt** - Removing from the front or the middle of the collection will cause all the subsequent key/values pairs to be shifted. Removing from the end runs in constant time.
 * **GetEnumerator** - Iterates over the key/value pairs linearly.
 * **CopyTo** - Copies the key/value pairs linearly.
 
 Guaranteeing constant time performance comes at the slight cost of additional memory. Each key will be allocated twice, along with it's index and the associated value. This should be minimal for most use-cases.
+
+*NOTE* It's important to note that on most modern systems inserting into or removing from the middle of sequential memory can be performed in a small number of CPU cycles via a single shift operation, especially in small collections (< 25 items). This can lead to a significant boost in performance compared to the typical linked list implementation. However, this varies greatly on your hardware and the size of the dictionary, so you should measure the performance carefully if you are dealing with performance critical software. 
 
 ## IList interface
 The `OrderedDictionary` class implements the `IList<KeyValuePair<TKey, TValue>>` interface, allowing it be treated like an ordered list, such as `List<T>`. One odd consequence of this interface is that the indexer (`dict[0] = new KeyValuePair<string, int>("Hello", 123)`) allows you to swap out the key/value pair appearing at a given index. If you try to change the key to a value already existing in the dictionary an exception will be thrown. Of course, it is perfectly okay to specify the current key and simply change the value.
