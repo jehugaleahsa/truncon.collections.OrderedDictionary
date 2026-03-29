@@ -1,3 +1,5 @@
+> *Archived 2026-03-28*: This project is very old. It always annoyed me that .NET did not have a generic `OrderedDictionary`. However, my implementation in this repository is not optimal. Many years after publishing this library, I learned the optimal implementation uses a linked list between nodes, not a separate array or whatever nonsense I was doing here. Microsoft finally added a generic `OrderedDictionary` at some point. I am glad this project no longer serves any purpose!
+
 Ordered Dictionary
 =====================================
 
